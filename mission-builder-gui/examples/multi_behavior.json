@@ -1,0 +1,84 @@
+{
+  "config": {
+    "mission_name": "complex_mission",
+    "community": "gamma",
+    "time_warp": 2,
+    "lat_origin": 43.825300,
+    "lon_origin": -70.330400,
+    "vehicle_type": "auv",
+    "cruise_speed": 2.5,
+    "capture_radius": 4.0,
+    "server_host": "localhost",
+    "server_port": 9002
+  },
+  "waypoints": [
+    {
+      "lat": 43.825300,
+      "lon": -70.330400,
+      "name": "Launch"
+    },
+    {
+      "lat": 43.826200,
+      "lon": -70.329200,
+      "name": "Survey_Start"
+    },
+    {
+      "lat": 43.827000,
+      "lon": -70.328000,
+      "name": "Survey_Mid"
+    },
+    {
+      "lat": 43.826800,
+      "lon": -70.326800,
+      "name": "Survey_End"
+    },
+    {
+      "lat": 43.825500,
+      "lon": -70.328500,
+      "name": "Loiter_Zone"
+    }
+  ],
+  "behaviors": [
+    {
+      "type": "waypoint",
+      "name": "initial_transit",
+      "params": {
+        "priority": 100,
+        "speed": 3.0,
+        "condition": "DEPLOY = true and SURVEY_COMPLETE = false"
+      }
+    },
+    {
+      "type": "loiter",
+      "name": "data_collection",
+      "params": {
+        "priority": 150,
+        "speed": 1.5,
+        "duration": 300,
+        "polygon": "radial:: x=50,y=-100,radius=30,pts=8",
+        "condition": "SURVEY_COMPLETE = true and DATA_COMPLETE = false"
+      }
+    },
+    {
+      "type": "constant_heading",
+      "name": "transit_home",
+      "params": {
+        "priority": 200,
+        "heading": 270,
+        "speed": 4.0,
+        "duration": 120,
+        "condition": "DATA_COMPLETE = true or RETURN = true"
+      }
+    },
+    {
+      "type": "station_keep",
+      "name": "emergency_hold",
+      "params": {
+        "priority": 300,
+        "inner_radius": 3,
+        "outer_radius": 10,
+        "condition": "EMERGENCY = true"
+      }
+    }
+  ]
+}

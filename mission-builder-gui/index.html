@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MOOS-IvP Mission Builder</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            height: 100vh;
+        }
+        
+        .sidebar {
+            width: 300px;
+            background: #f5f5f5;
+            border-right: 1px solid #ddd;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        
+        .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .section h3 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #007acc;
+            padding-bottom: 5px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .button:hover {
+            background: #005a9e;
+        }
+        
+        .button.secondary {
+            background: #6c757d;
+        }
+        
+        .button.success {
+            background: #28a745;
+        }
+        
+        .button.danger {
+            background: #dc3545;
+        }
+        
+        .waypoint-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+        }
+        
+        .waypoint-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .waypoint-item:last-child {
+            border-bottom: none;
+        }
+        
+        .behavior-item {
+            background: #e9ecef;
+            margin: 5px 0;
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 4px solid #007acc;
+        }
+        
+        .status-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 5px 15px;
+            font-size: 12px;
+            z-index: 1000;
+        }
+        
+        .coordinates {
+            display: inline-block;
+            margin-right: 20px;
+        }
+        
+        .mission-info {
+            font-size: 12px;
+            color: #666;
+            margin-top: 10px;
+        }
+        
+        .tab-container {
+            margin-bottom: 15px;
+        }
+        
+        .tab-buttons {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .tab-button {
+            padding: 8px 15px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+        
+        .tab-button.active {
+            border-bottom-color: #007acc;
+            color: #007acc;
+            font-weight: bold;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 15px 0;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>MOOS-IvP Mission Builder</h2>
+        
+        <!-- Mission Configuration -->
+        <div class="section">
+            <h3>Mission Configuration</h3>
+            <div class="form-group">
+                <label>Mission Name:</label>
+                <input type="text" id="missionName" value="new_mission" />
+            </div>
+            <div class="form-group">
+                <label>Community:</label>
+                <input type="text" id="community" value="alpha" />
+            </div>
+            <div class="form-group">
+                <label>Time Warp:</label>
+                <input type="number" id="timeWarp" value="1" min="1" max="50" />
+            </div>
+            <div class="form-group">
+                <label>Vehicle Type:</label>
+                <select id="vehicleType">
+                    <option value="kayak">Kayak</option>
+                    <option value="auv">AUV</option>
+                    <option value="usv">USV</option>
+                    <option value="ship">Ship</option>
+                </select>
+            </div>
+        </div>
+        
+        <!-- Coordinate System -->
+        <div class="section">
+            <h3>Coordinate System</h3>
+            <div class="form-group">
+                <label>Latitude Origin:</label>
+                <input type="number" id="latOrigin" value="43.825300" step="0.000001" />
+            </div>
+            <div class="form-group">
+                <label>Longitude Origin:</label>
+                <input type="number" id="longOrigin" value="-70.330400" step="0.000001" />
+            </div>
+            <button class="button" onclick="updateMapOrigin()">Update Map Origin</button>
+        </div>
+        
+        <!-- Waypoints and Behaviors Tabs -->
+        <div class="section">
+            <div class="tab-container">
+                <div class="tab-buttons">
+                    <button class="tab-button active" onclick="switchTab('waypoints')">Waypoints</button>
+                    <button class="tab-button" onclick="switchTab('behaviors')">Behaviors</button>
+                </div>
+                
+                <!-- Waypoints Tab -->
+                <div id="waypoints-tab" class="tab-content active">
+                    <h3>Waypoints</h3>
+                    <button class="button" onclick="toggleWaypointMode()">Add Waypoint</button>
+                    <button class="button secondary" onclick="clearWaypoints()">Clear All</button>
+                    
+                    <div class="waypoint-list" id="waypointList">
+                        <div class="mission-info">Click on map to add waypoints</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Cruise Speed (m/s):</label>
+                        <input type="number" id="cruiseSpeed" value="3" step="0.1" min="0.1" />
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Capture Radius (m):</label>
+                        <input type="number" id="captureRadius" value="5" step="0.5" min="0.5" />
+                    </div>
+                </div>
+                
+                <!-- Behaviors Tab -->
+                <div id="behaviors-tab" class="tab-content">
+                    <h3>Behaviors</h3>
+                    <button class="button" onclick="addBehavior('waypoint')">+ Waypoint</button>
+                    <button class="button" onclick="addBehavior('stationkeep')">+ Station Keep</button>
+                    <button class="button" onclick="addBehavior('loiter')">+ Loiter</button>
+                    
+                    <div id="behaviorList">
+                        <div class="mission-info">No behaviors configured</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- File Operations -->
+        <div class="section">
+            <h3>File Operations</h3>
+            <button class="button success" onclick="generateMission()">Generate .moos File</button>
+            <button class="button success" onclick="generateBehavior()">Generate .bhv File</button>
+            <button class="button" onclick="previewMission()">Preview Mission</button>
+            <button class="button secondary" onclick="loadTemplate()">Load Template</button>
+        </div>
+        
+        <!-- Status -->
+        <div class="section">
+            <h3>Status</h3>
+            <div id="status">Ready to build mission</div>
+            <div class="mission-info">
+                Waypoints: <span id="waypointCount">0</span><br>
+                Behaviors: <span id="behaviorCount">0</span><br>
+                Est. Duration: <span id="estimatedDuration">Unknown</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="map-container">
+        <div id="map"></div>
+        <div class="status-bar">
+            <span class="coordinates" id="mouseCoords">Lat: --, Lon: --</span>
+            <span class="coordinates" id="clickCoords">Last Click: --, --</span>
+            <span id="mapStatus">Click on map to add waypoints</span>
+        </div>
+    </div>
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Global variables
+        let map;
+        let waypoints = [];
+        let waypointMarkers = [];
+        let routeLine = null;
+        let waypointMode = false;
+        let behaviors = [];
+        let waypointCounter = 1;
+        
+        // Initialize map
+        function initMap() {
+            // Forest Lake coordinates (from MOOS-IvP example)
+            const lat = 43.825300;
+            const lon = -70.330400;
+            
+            map = L.map('map').setView([lat, lon], 13);
+            
+            // Add OpenStreetMap tiles
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+            
+            // Add mouse coordinate tracking
+            map.on('mousemove', function(e) {
+                document.getElementById('mouseCoords').innerHTML = 
+                    `Lat: ${e.latlng.lat.toFixed(6)}, Lon: ${e.latlng.lng.toFixed(6)}`;
+            });
+            
+            // Add click handler for waypoints
+            map.on('click', function(e) {
+                document.getElementById('clickCoords').innerHTML = 
+                    `Last Click: ${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`;
+                    
+                if (waypointMode) {
+                    addWaypoint(e.latlng.lat, e.latlng.lng);
+                }
+            });
+        }
+        
+        // Toggle waypoint adding mode
+        function toggleWaypointMode() {
+            waypointMode = !waypointMode;
+            const button = document.querySelector('button[onclick="toggleWaypointMode()"]');
+            if (waypointMode) {
+                button.textContent = 'Stop Adding';
+                button.className = 'button danger';
+                document.getElementById('mapStatus').textContent = 'Click on map to add waypoints';
+            } else {
+                button.textContent = 'Add Waypoint';
+                button.className = 'button';
+                document.getElementById('mapStatus').textContent = 'Waypoint mode disabled';
+            }
+        }
+        
+        // Add waypoint
+        function addWaypoint(lat, lng) {
+            const waypoint = {
+                id: waypointCounter++,
+                lat: lat,
+                lng: lng,
+                name: `WP${waypoints.length + 1}`
+            };
+            
+            waypoints.push(waypoint);
+            
+            // Add marker to map
+            const marker = L.marker([lat, lng])
+                .addTo(map)
+                .bindPopup(`${waypoint.name}<br>Lat: ${lat.toFixed(6)}<br>Lng: ${lng.toFixed(6)}`);
+            
+            waypointMarkers.push(marker);
+            
+            // Update route line
+            updateRouteLine();
+            updateWaypointList();
+            updateStatus();
+        }
+        
+        // Update route line
+        function updateRouteLine() {
+            if (routeLine) {
+                map.removeLayer(routeLine);
+            }
+            
+            if (waypoints.length > 1) {
+                const latlngs = waypoints.map(wp => [wp.lat, wp.lng]);
+                routeLine = L.polyline(latlngs, {color: 'blue', weight: 3}).addTo(map);
+            }
+        }
+        
+        // Update waypoint list
+        function updateWaypointList() {
+            const list = document.getElementById('waypointList');
+            
+            if (waypoints.length === 0) {
+                list.innerHTML = '<div class="mission-info">Click on map to add waypoints</div>';
+                return;
+            }
+            
+            list.innerHTML = waypoints.map((wp, index) => `
+                <div class="waypoint-item">
+                    <span>${wp.name}: ${wp.lat.toFixed(4)}, ${wp.lng.toFixed(4)}</span>
+                    <button class="button danger" style="padding: 2px 8px; font-size: 12px;" 
+                            onclick="removeWaypoint(${index})">×</button>
+                </div>
+            `).join('');
+        }
+        
+        // Remove waypoint
+        function removeWaypoint(index) {
+            if (index >= 0 && index < waypoints.length) {
+                // Remove marker from map
+                map.removeLayer(waypointMarkers[index]);
+                
+                // Remove from arrays
+                waypoints.splice(index, 1);
+                waypointMarkers.splice(index, 1);
+                
+                // Update display
+                updateRouteLine();
+                updateWaypointList();
+                updateStatus();
+            }
+        }
+        
+        // Clear all waypoints
+        function clearWaypoints() {
+            waypointMarkers.forEach(marker => map.removeLayer(marker));
+            waypoints = [];
+            waypointMarkers = [];
+            waypointCounter = 1;
+            
+            if (routeLine) {
+                map.removeLayer(routeLine);
+                routeLine = null;
+            }
+            
+            updateWaypointList();
+            updateStatus();
+        }
+        
+        // Switch tabs
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Remove active class from all buttons
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // Show selected tab and activate button
+            document.getElementById(tabName + '-tab').classList.add('active');
+            event.target.classList.add('active');
+        }
+        
+        // Add behavior
+        function addBehavior(type) {
+            const behavior = {
+                id: behaviors.length + 1,
+                type: type,
+                name: `${type}_${behaviors.length + 1}`,
+                priority: 100,
+                conditions: []
+            };
+            
+            behaviors.push(behavior);
+            updateBehaviorList();
+            updateStatus();
+        }
+        
+        // Update behavior list
+        function updateBehaviorList() {
+            const list = document.getElementById('behaviorList');
+            
+            if (behaviors.length === 0) {
+                list.innerHTML = '<div class="mission-info">No behaviors configured</div>';
+                return;
+            }
+            
+            list.innerHTML = behaviors.map((bhv, index) => `
+                <div class="behavior-item">
+                    <strong>${bhv.name}</strong> (${bhv.type})
+                    <br><small>Priority: ${bhv.priority}</small>
+                    <button class="button danger" style="float: right; padding: 2px 8px; font-size: 12px;" 
+                            onclick="removeBehavior(${index})">×</button>
+                </div>
+            `).join('');
+        }
+        
+        // Remove behavior
+        function removeBehavior(index) {
+            if (index >= 0 && index < behaviors.length) {
+                behaviors.splice(index, 1);
+                updateBehaviorList();
+                updateStatus();
+            }
+        }
+        
+        // Update status
+        function updateStatus() {
+            document.getElementById('waypointCount').textContent = waypoints.length;
+            document.getElementById('behaviorCount').textContent = behaviors.length;
+            
+            // Calculate estimated duration
+            if (waypoints.length > 1) {
+                const speed = parseFloat(document.getElementById('cruiseSpeed').value) || 3;
+                let totalDistance = 0;
+                
+                for (let i = 1; i < waypoints.length; i++) {
+                    const dist = calculateDistance(waypoints[i-1], waypoints[i]);
+                    totalDistance += dist;
+                }
+                
+                const durationSeconds = totalDistance / speed;
+                const minutes = Math.floor(durationSeconds / 60);
+                const seconds = Math.floor(durationSeconds % 60);
+                
+                document.getElementById('estimatedDuration').textContent = `${minutes}m ${seconds}s`;
+            } else {
+                document.getElementById('estimatedDuration').textContent = 'Unknown';
+            }
+        }
+        
+        // Calculate distance between two points (rough approximation)
+        function calculateDistance(wp1, wp2) {
+            const R = 6371000; // Earth's radius in meters
+            const dLat = (wp2.lat - wp1.lat) * Math.PI / 180;
+            const dLng = (wp2.lng - wp1.lng) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(wp1.lat * Math.PI / 180) * Math.cos(wp2.lat * Math.PI / 180) *
+                      Math.sin(dLng/2) * Math.sin(dLng/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+        
+        // Update map origin
+        function updateMapOrigin() {
+            const lat = parseFloat(document.getElementById('latOrigin').value);
+            const lng = parseFloat(document.getElementById('longOrigin').value);
+            
+            if (!isNaN(lat) && !isNaN(lng)) {
+                map.setView([lat, lng], 13);
+                document.getElementById('status').textContent = 'Map origin updated';
+            }
+        }
+        
+        // Generate MOOS file
+        function generateMission() {
+            const missionName = document.getElementById('missionName').value;
+            const community = document.getElementById('community').value;
+            const timeWarp = document.getElementById('timeWarp').value;
+            const latOrigin = document.getElementById('latOrigin').value;
+            const longOrigin = document.getElementById('longOrigin').value;
+            const vehicleType = document.getElementById('vehicleType').value;
+            
+            const moosContent = `//------------------------------------------------------------------------
+// MOOS Configuration File - Generated by MOOS-IvP Mission Builder
+// Mission: ${missionName}
+// Generated: ${new Date().toISOString()}
+//------------------------------------------------------------------------
+
+ServerHost   = localhost
+ServerPort   = 9000
+Community    = ${community}
+MOOSTimeWarp = ${timeWarp}
+
+// Coordinate Origin
+LatOrigin  = ${latOrigin}
+LongOrigin = ${longOrigin}
+
+//------------------------------------------
+// Antler configuration block
+ProcessConfig = ANTLER
+{
+  MSBetweenLaunches = 200
+
+  Run = MOOSDB          @ NewConsole = false
+  Run = pLogger         @ NewConsole = false
+  Run = uSimMarineV23   @ NewConsole = false
+  Run = pMarinePIDV22   @ NewConsole = false
+  Run = pHelmIvP        @ NewConsole = false
+  Run = pMarineViewer   @ NewConsole = false
+  Run = pNodeReporter   @ NewConsole = false
+  Run = uProcessWatch   @ NewConsole = false
+  Run = pRealm          @ NewConsole = false
+}
+
+//------------------------------------------
+// uSimMarineV23 config block
+ProcessConfig = uSimMarineV23
+{
+  AppTick   = 10
+  CommsTick = 10
+
+  START_POS = 0,0,180,0
+  PREFIX    = NAV
+
+  TURN_RATE = 40
+  THRUST_MAP = 0:0, 20:1, 40:2, 60:3, 80:4, 100:5
+  THRUST_REFLECT = true
+}
+
+//------------------------------------------
+// pHelmIvP config block
+ProcessConfig = pHelmIvP
+{
+  AppTick    = 4
+  CommsTick  = 4
+
+  Behaviors    = ${missionName}.bhv
+  Verbose      = false
+  Domain       = course:0:359:360
+  Domain       = speed:0:5:26
+}
+
+//------------------------------------------
+// pMarinePIDV22 config block
+ProcessConfig = pMarinePIDV22
+{
+  AppTick    = 10
+  CommsTick  = 10
+
+  VERBOSE       = true
+  DEPTH_CONTROL = false
+  ACTIVE_START  = true
+
+  // Yaw PID controller
+  YAW_PID_KP             = 0.9
+  YAW_PID_KD             = 0.3
+  YAW_PID_KI             = 0.3
+  YAW_PID_INTEGRAL_LIMIT = 0.07
+
+  // Speed PID controller
+  SPEED_PID_KP           = 1.0
+  SPEED_PID_KD           = 0.0
+  SPEED_PID_KI           = 0.0
+  SPEED_PID_INTEGRAL_LIMIT = 0.07
+
+  MAXRUDDER    = 100
+  MAXTHRUST    = 100
+
+  // A non-zero SPEED_FACTOR overrides use of SPEED_PID
+  // Will set DESIRED_THRUST = DESIRED_SPEED * SPEED_FACTOR
+  SPEED_FACTOR = 20
+}
+
+//------------------------------------------
+// pMarineViewer config block
+ProcessConfig = pMarineViewer
+{
+  AppTick    = 4
+  CommsTick  = 4
+
+  TIFF_FILE            = forrest19.tif
+  set_pan_x            = -90
+  set_pan_y            = -280
+  zoom                 = 0.65
+  vehicles_shape_scale = 1.5
+  vehicles_name_mode   = names
+
+  point_viewable_all = true
+  polygon_viewable_all = true
+  seglist_viewable_all = true
+  
+  SCOPE = HELM_STATE
+  SCOPE = DEPLOY
+  SCOPE = RETURN
+  SCOPE = WPT_STAT
+  SCOPE = VIEW_SEGLIST
+  SCOPE = VIEW_POINT
+  SCOPE = VIEW_POLYGON
+  SCOPE = MVIEWER_LCLICK
+  SCOPE = MVIEWER_RCLICK
+
+  BUTTON_ONE = DEPLOY # DEPLOY=true
+  BUTTON_ONE = MOOS_MANUAL_OVERRIDE=false # RETURN=false
+  BUTTON_TWO = RETURN # RETURN=true
+
+  ACTION = MENU_KEY=deploy # DEPLOY = true # RETURN = false
+  ACTION = MENU_KEY=return # RETURN = true
+}
+
+//------------------------------------------
+// pLogger config block
+ProcessConfig = pLogger
+{
+  AppTick       = 10
+  CommsTick     = 10
+
+  File          = ${missionName}
+  PATH          = ./
+  SyncLog       = true @ 0.2
+  AsyncLog      = true
+  FileTimeStamp = true
+
+  LogAuxSrc     = true
+
+  // Log it all!!!!!
+  WildCardLogging = true
+  WildCardOmitPattern = *_STATUS
+  WildCardOmitPattern = DB_VARSUMMARY
+  WildCardOmitPattern = DB_RWSUMMARY
+}
+
+//------------------------------------------
+// pNodeReporter config block
+ProcessConfig = pNodeReporter
+{
+  AppTick     = 2
+  CommsTick   = 2
+
+  VESSEL_TYPE = ${vehicleType}
+}
+
+//------------------------------------------
+// uProcessWatch config block
+ProcessConfig = uProcessWatch
+{
+  AppTick   = 1
+  CommsTick = 1
+
+  ALLOW_RETRACTIONS = true
+
+  WATCH_ALL = true      // default is true
+  NOWATCH = uXMS*
+  NOWATCH = uPokeDB*
+
+  SUMMARY_WAIT = 12
+}
+
+//------------------------------------------
+// pRealm config block
+ProcessConfig = pRealm
+{
+  AppTick   = 4
+  CommsTick = 4
+
+  RELCAST_INTERVAL = 0.5
+  SUMMARY_INTERVAL = 2.0
+
+  HIST_VAR = HELM_STATE
+  HIST_VAR = DEPLOY
+  HIST_VAR = RETURN
+}`;
+
+            // Create download
+            downloadFile(`${missionName}.moos`, moosContent);
+            document.getElementById('status').textContent = 'MOOS file generated and downloaded';
+        }
+        
+        // Generate behavior file
+        function generateBehavior() {
+            const missionName = document.getElementById('missionName').value;
+            const cruiseSpeed = document.getElementById('cruiseSpeed').value;
+            const captureRadius = document.getElementById('captureRadius').value;
+            
+            let bhvContent = `//------------------------------------------------------------------------
+// Behavior File - Generated by MOOS-IvP Mission Builder
+// Mission: ${missionName}
+// Generated: ${new Date().toISOString()}
+//------------------------------------------------------------------------
+
+initialize   DEPLOY = false
+initialize   RETURN = false
+
+//----------------------------------------------
+Behavior = BHV_Waypoint
+{ 
+  name      = waypt_survey
+  pwt       = 100
+  condition = RETURN = false
+  condition = DEPLOY = true
+  endflag   = RETURN = true
+
+  updates    = WPT_UPDATE
+  perpetual  = true
+
+  speed = ${cruiseSpeed}   // meters per second
+  capture_radius = ${captureRadius}
+  slip_radius = ${parseFloat(captureRadius) * 3}
+  
+  efficiency_measure = all`;
+
+            if (waypoints.length > 0) {
+                // Convert waypoints to local coordinates (simplified)
+                const waypointStr = waypoints.map((wp, index) => {
+                    // For this prototype, we'll use a simple approximation
+                    // In reality, you'd need proper coordinate transformation
+                    const x = (wp.lng - parseFloat(document.getElementById('longOrigin').value)) * 111320 * Math.cos(wp.lat * Math.PI / 180);
+                    const y = (wp.lat - parseFloat(document.getElementById('latOrigin').value)) * 110540;
+                    return `${x.toFixed(1)},${y.toFixed(1)}`;
+                }).join(':');
+                
+                bhvContent += `
+  polygon = ${waypointStr}`;
+            }
+
+            bhvContent += `
+
+  order = normal
+  repeat = 0
+
+  visual_hints = nextpt_color=yellow
+  visual_hints = nextpt_vertex_size=8
+  visual_hints = trails_color=khaki
+  visual_hints = trails_length=300
+}
+
+//----------------------------------------------
+Behavior = BHV_StationKeep
+{
+  name      = station-keep
+  pwt       = 100
+  condition = DEPLOY = true
+  condition = RETURN = true
+
+  center_activate = true
+  inner_radius = 5
+  outer_radius = 10 
+  outer_speed = 1.0
+
+  transit_speed = 1.3
+  swing_time = 7
+  visual_hints = vertex_size=0, edge_color=gray
+}`;
+
+            // Create download
+            downloadFile(`${missionName}.bhv`, bhvContent);
+            document.getElementById('status').textContent = 'Behavior file generated and downloaded';
+        }
+        
+        // Download file helper
+        function downloadFile(filename, content) {
+            const element = document.createElement('a');
+            element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
+            element.setAttribute('download', filename);
+            element.style.display = 'none';
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        }
+        
+        // Preview mission
+        function previewMission() {
+            const preview = `
+Mission Summary:
+- Name: ${document.getElementById('missionName').value}
+- Community: ${document.getElementById('community').value}
+- Vehicle: ${document.getElementById('vehicleType').value}
+- Waypoints: ${waypoints.length}
+- Behaviors: ${behaviors.length}
+- Estimated Duration: ${document.getElementById('estimatedDuration').textContent}
+
+Waypoints:
+${waypoints.map((wp, i) => `  ${i+1}. ${wp.lat.toFixed(6)}, ${wp.lng.toFixed(6)}`).join('\n')}
+
+Ready to generate MOOS configuration files!`;
+
+            alert(preview);
+        }
+        
+        // Load template (placeholder)
+        function loadTemplate() {
+            alert('Template loading functionality would be implemented here.\n\nTemplates could include:\n- Basic waypoint missions\n- Station keeping\n- Survey patterns\n- Multi-vehicle formations\n- Search and rescue scenarios');
+        }
+        
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initMap();
+            updateStatus();
+        });
+    </script>
+</body>
+</html>

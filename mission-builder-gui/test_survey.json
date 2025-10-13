@@ -1,0 +1,57 @@
+{
+  "config": {
+    "mission_name": "basic_survey",
+    "community": "alpha",
+    "time_warp": 1,
+    "lat_origin": 43.8253,
+    "lon_origin": -70.3304,
+    "vehicle_type": "kayak",
+    "cruise_speed": 3.0,
+    "capture_radius": 5.0,
+    "server_host": "localhost",
+    "server_port": 9000
+  },
+  "waypoints": [
+    {
+      "lat": 43.8253,
+      "lon": -70.3304,
+      "name": "Start"
+    },
+    {
+      "lat": 43.826,
+      "lon": -70.329,
+      "name": "WP1"
+    },
+    {
+      "lat": 43.8265,
+      "lon": -70.328,
+      "name": "WP2"
+    },
+    {
+      "lat": 43.827,
+      "lon": -70.327,
+      "name": "WP3"
+    },
+    {
+      "lat": 43.8265,
+      "lon": -70.326,
+      "name": "WP4"
+    },
+    {
+      "lat": 43.8255,
+      "lon": -70.327,
+      "name": "Return"
+    }
+  ],
+  "behaviors": [
+    {
+      "type": "waypoint",
+      "name": "survey_pattern",
+      "params": {
+        "priority": 100,
+        "speed": 3.0,
+        "condition": "DEPLOY = true"
+      }
+    }
+  ]
+}
