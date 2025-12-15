@@ -1,0 +1,18 @@
+//------------------------------------------------------
+// Target Configuration
+// Controlled by uTimerScript in shoreside
+//------------------------------------------------------
+
+// Starting position: Origin (x=0, y=0, depth=50, heading=0°)
+START_POS = 0,0,50,0
+
+// Vehicle identification
+VNAME = target
+VPORT = 9004
+VCOLOR = red
+
+// No role (controlled by script)
+ROLE = target
+
+// Target doesn't use standard behaviors
+// Waypoints provided by uTimerScript via TARGET_UPDATES

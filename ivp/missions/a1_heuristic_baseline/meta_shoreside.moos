@@ -1,0 +1,224 @@
+//------------------------------------------------------
+// Shoreside Configuration: meta_shoreside.moos
+// Phase 0: Perfect sensors and communications
+//------------------------------------------------------
+
+ServerHost = localhost
+ServerPort = 9000
+Community  = shoreside
+
+MOOSTimeWarp = $(WARP)
+
+// Monterey Bay, CA coordinates
+LatOrigin  = 36.8
+LongOrigin = -121.9
+
+//------------------------------------------------------
+// ANTLER Configuration
+//------------------------------------------------------
+ProcessConfig = ANTLER
+{
+  MSBetweenLaunches = 100
+
+  Run = MOOSDB             @ NewConsole = false
+  Run = pMarineViewer      @ NewConsole = false
+  Run = uFldShoreBroker    @ NewConsole = false
+  Run = uFldNodeComms      @ NewConsole = false
+  Run = uFldContactRangeSensor @ NewConsole = false
+  Run = uTimerScript       @ NewConsole = false
+}
+
+//------------------------------------------------------
+// pMarineViewer - Visualization
+//------------------------------------------------------
+ProcessConfig = pMarineViewer
+{
+  AppTick    = 4
+  CommsTick  = 4
+
+  // Background map (optional - will work without)
+  // TIFF_FILE = monterey_bay.tif
+  
+  // View settings for Monterey Bay
+  set_pan_x       = -100
+  set_pan_y       = -300
+  zoom            = 0.65
+  
+  // Vehicle display
+  vehicles_shape_scale  = 1.5
+  vehicles_name_mode    = names+shortmode
+  vehicles_name_color   = white
+  
+  // Polygons and markers
+  polygon_viewable_all   = true
+  polygon_viewable_labels = true
+  seglist_viewable_all   = true
+  point_viewable_all     = true
+  
+  // GUI Buttons
+  BUTTON_ONE   = DEPLOY  # DEPLOY_ALL=true
+  BUTTON_ONE   = MOOS_MANUAL_OVERRIDE_ALL=false
+  
+  BUTTON_TWO   = RETURN  # RETURN_ALL=true
+  
+  BUTTON_THREE = TRACK   # TRACKING_ALL=true
+  
+  BUTTON_FOUR  = STATION # STATION_KEEP_ALL=true
+  
+  // GUI Actions
+  ACTION = STATION_KEEP_ALL = false
+  ACTION = STATION_KEEP_ALL = true
+  
+  // AppCast viewing
+  APPCAST_VIEWABLE = true
+  APPCAST_COLOR_SCHEME = indigo
+  
+  // Hash visualization
+  HASH_VIEW   = true
+  HASH_SHADE  = 0.35
+  HASH_DELTA  = 50
+}
+
+//------------------------------------------------------
+// uFldShoreBroker - Message Bridging
+//------------------------------------------------------
+ProcessConfig = uFldShoreBroker
+{
+  AppTick       = 1
+  CommsTick     = 1
+
+  // Bridge key variables
+  QBRIDGE = DEPLOY, RETURN, STATION_KEEP, TRACKING
+  QBRIDGE = NODE_REPORT, NODE_MESSAGE
+  QBRIDGE = MOOS_MANUAL_OVERRIDE
+  QBRIDGE = CONTACT_INFO
+  QBRIDGE = PURSUIT_POINTS  // For dynamic waypoint updates
+  
+  // Per-vehicle bridging
+  BRIDGE  = src=DEPLOY_$V,  alias=DEPLOY
+  BRIDGE  = src=RETURN_$V,  alias=RETURN
+  BRIDGE  = src=STATION_KEEP_$V, alias=STATION_KEEP
+  BRIDGE  = src=TRACKING_$V, alias=TRACKING
+  
+  // Register all vehicles (critical!)
+  BRIDGE = src=auv_0
+  BRIDGE = src=auv_1
+  BRIDGE = src=auv_2
+  BRIDGE = src=target
+}
+
+//------------------------------------------------------
+// uFldNodeComms - Phase 0: Perfect Communications
+//------------------------------------------------------
+ProcessConfig = uFldNodeComms
+{
+  AppTick   = 2
+  CommsTick = 2
+
+  // Phase 0: Perfect comms (no loss)
+  COMMS_RANGE      = 1000    // Effectively unlimited
+  CRITICAL_RANGE   = 25      // Collision safety buffer
+  MIN_MSG_INTERVAL = 0       // No throttling
+  MAX_MSG_LENGTH   = 10000   // No size limit
+  
+  GROUPS           = true    // Enable group comms
+  
+  // Visualization
+  VIEW_NODE_RPT_PULSES = true
+  PULSE_DURATION = 10
+  
+  // Phase 0: Open policy (perfect)
+  COMMS_POLICY = open
+  STEALTH_MODE = false
+  
+  // No message drops
+  MSG_REPEAT_FACTOR = 1.0
+  
+  // Register vehicles for comms simulation
+  NODE = auv_0
+  NODE = auv_1
+  NODE = auv_2
+  NODE = target
+  
+  // Stale threshold
+  STALE_TIME = 15
+}
+
+//------------------------------------------------------
+// uFldContactRangeSensor - Phase 0: Perfect Bearings
+//------------------------------------------------------
+ProcessConfig = uFldContactRangeSensor
+{
+  AppTick   = 4
+  CommsTick = 4
+
+  // Sensor config for each AUV (perfect detection)
+  SENSOR_CONFIG = vname=auv_0, range=500, bearing_width=180
+  SENSOR_CONFIG = vname=auv_1, range=500, bearing_width=180
+  SENSOR_CONFIG = vname=auv_2, range=500, bearing_width=180
+  
+  // Phase 0: Bearing-only (realistic) but perfect measurements
+  REPLY_RANGE_REPORT = false
+  REPLY_BEARING_REPORT = true
+  
+  // Phase 0: No noise
+  BEARING_NOISE = 0.0
+  
+  // Phase 0: Perfect detection
+  PROB_DETECT = 1.0
+  
+  // Target contact to detect
+  CONTACTS = target
+  
+  // Visualization
+  DISPLAY_PULSES = true
+  PULSE_DURATION = 8
+  PULSE_RANGE = 500
+  
+  // Allow direct range for debugging (can disable later)
+  ALLOW_ECHO_TYPES = true
+  
+  // Register all platforms
+  PLATFORM = auv_0
+  PLATFORM = auv_1
+  PLATFORM = auv_2
+  PLATFORM = target
+  
+  // Report format
+  CONTACT_INFO_VAR = CONTACT_INFO
+}
+
+//------------------------------------------------------
+// uTimerScript - Target Motion Control
+//------------------------------------------------------
+ProcessConfig = uTimerScript
+{
+  AppTick   = 4
+  CommsTick = 4
+
+  // Phase 0: Simple straight-line target motion
+  // Target moves from (0,0) to (400,0) at 1.5 m/s
+  
+  // t=0s: Deploy target
+  event = var=DEPLOY_TARGET, val="true", time=0
+  
+  // t=0s: Set straight-line waypoints
+  event = var=TARGET_UPDATES, val="points=0,0:200,0:400,0:600,0", time=0
+  
+  // t=0s: Set target speed (1.5 m/s - same as AUVs)
+  event = var=TARGET_SPEED, val="1.5", time=0
+  
+  // t=300s: Switch to patrol pattern (for testing)
+  event = var=TARGET_UPDATES, val="points=600,0:600,100:400,100:400,0:600,0", time=300
+  event = var=TARGET_SPEED, val="1.5", time=300
+  
+  // t=600s: Switch to evasive maneuver (for advanced testing)
+  event = var=TARGET_UPDATES, val="points=700,100:800,150:900,100:1000,150", time=600
+  event = var=TARGET_SPEED, val="2.0", time=600
+  
+  // Status updates
+  status_var = TIMER_STATUS
+  
+  // Verbose output
+  verbose = true
+}

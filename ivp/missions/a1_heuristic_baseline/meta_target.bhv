@@ -1,0 +1,39 @@
+//------------------------------------------------------
+// Target Behavior File
+// Simple waypoint following controlled by uTimerScript
+//------------------------------------------------------
+
+initialize DEPLOY = false
+initialize RETURN = false
+
+Behavior = BHV_Waypoint
+{
+  name = target_waypoint
+  pwt = 100
+  condition = DEPLOY = true
+  updates = TARGET_UPDATES
+  perpetual = true
+
+  speed = 1.5
+  radius = 10.0
+  nm_radius = 15.0
+  
+  // Default straight-line path
+  points = 0,0:200,0:400,0:600,0
+  
+  repeat = 10
+  lead = 15
+}
+
+Behavior = BHV_ConstantDepth
+{
+  name = target_depth
+  pwt = 100
+  condition = DEPLOY = true
+  
+  // Fixed at 50m
+  depth = 50
+  peakwidth = 3
+  basewidth = 2
+  summitdelta = 10
+}

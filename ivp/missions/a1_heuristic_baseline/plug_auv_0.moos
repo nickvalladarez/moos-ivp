@@ -1,0 +1,18 @@
+//------------------------------------------------------
+// AUV 0 Configuration: Pinger Role
+// Initial Position: Center, behind target
+//------------------------------------------------------
+
+// Starting position: (x=0, y=-50, depth=50, heading=0°)
+START_POS = 0,-50,50,0
+
+// Vehicle identification
+VNAME = auv_0
+VPORT = 9001
+VCOLOR = blue
+
+// Role assignment
+ROLE = pinger
+
+// Initial pursuit points (will be updated during tracking)
+PURSUIT_POINTS = 100,0:200,0

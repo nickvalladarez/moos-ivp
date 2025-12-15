@@ -1,0 +1,195 @@
+//------------------------------------------------------
+// Behavior File: meta_vehicle.bhv
+// Phase 0: Heuristic baseline with fixed roles
+//------------------------------------------------------
+
+initialize DEPLOY = false
+initialize RETURN = false
+initialize STATION_KEEP = false
+initialize TRACKING = false
+initialize ROLE = $(ROLE)  // pinger, shadower_left, shadower_right
+
+//------------------------------------------------------
+// Safety Behaviors - Always Active
+//------------------------------------------------------
+
+Behavior = BHV_AvoidCollision
+{
+  name = avdcollision_
+  pwt = 200
+  condition = DEPLOY = true
+  updates = CONTACT_INFO
+  endflag = CONTACT_RESOLVED = $[CONTACT]
+  templating = spawn
+
+  contact = to-be-set
+  on_no_contact_ok = true
+  extrapolate = true
+  decay = 30,60
+
+  pwt_outer_dist = 50
+  pwt_inner_dist = 20
+  completed_dist = 75
+  min_util_cpa_dist = 8
+  max_util_cpa_dist = 25
+  cpa_thresh = 8
+  
+  bearing_line_config = white:0, green:0.65, yellow:0.8, red:1.0
+}
+
+Behavior = BHV_ConstantDepth
+{
+  name = depth_50m
+  pwt = 100
+  condition = DEPLOY = true
+  duration = no-time-limit
+
+  // Phase 0: Fixed at 50m depth
+  depth = 50
+  peakwidth = 3
+  basewidth = 2
+  summitdelta = 10
+}
+
+//------------------------------------------------------
+// Pinger Role Behavior (Pursuit from Behind)
+//------------------------------------------------------
+
+Behavior = BHV_Waypoint
+{
+  name = pinger_pursuit
+  pwt = 100
+  condition = DEPLOY = true
+  condition = TRACKING = true
+  condition = ROLE = pinger
+  endflag = TRACKING = false
+  perpetual = true
+
+  // Speed: REMUS 100 cruise speed
+  speed = 1.5
+  radius = 10.0
+  nm_radius = 15.0
+  
+  // Pursuit points updated by external script
+  // Format: "x1,y1:x2,y2:..."
+  points = $(PURSUIT_POINTS)
+  
+  repeat = 0
+  lead = 15
+  lead_damper = 1
+}
+
+//------------------------------------------------------
+// Shadower Role Behaviors (Flank Positions)
+//------------------------------------------------------
+
+Behavior = BHV_Trail
+{
+  name = shadower_trail
+  pwt = 90
+  condition = DEPLOY = true
+  condition = TRACKING = true
+  condition = ROLE = shadower_left or ROLE = shadower_right
+  perpetual = true
+
+  contact = target
+  
+  // Trail distance: 100m behind
+  trail_range = 100
+  trail_angle = relative  // Relative to target heading
+  
+  // Flank angle (set via updates)
+  trail_angle_type = relative
+  
+  radius = 15.0
+  nm_radius = 20.0
+  
+  // Speed matching
+  speed = 1.5
+}
+
+Behavior = BHV_Waypoint
+{
+  name = shadower_waypoint
+  pwt = 85
+  condition = DEPLOY = true  
+  condition = TRACKING = true
+  condition = ROLE = shadower_left or ROLE = shadower_right
+  perpetual = true
+
+  speed = 1.5
+  radius = 10.0
+  nm_radius = 15.0
+  
+  // Flank pursuit points
+  points = $(PURSUIT_POINTS)
+  
+  repeat = 0
+  lead = 15
+}
+
+//------------------------------------------------------
+// Search/Loiter Behavior (When Not Tracking)
+//------------------------------------------------------
+
+Behavior = BHV_Loiter
+{
+  name = loiter_search
+  pwt = 80
+  condition = DEPLOY = true
+  condition = TRACKING = false
+  perpetual = true
+
+  center_activate = true
+  center_assign = $(START_POS)
+  
+  // Slow search speed
+  speed = 1.2
+  clockwise = best
+  
+  // Search radius
+  radius = 30
+  nm_radius = 40
+  
+  // Spiral outward if no contact
+  spiral_factor = 2
+}
+
+//------------------------------------------------------
+// Station Keep Behavior (Manual Override)
+//------------------------------------------------------
+
+Behavior = BHV_StationKeep
+{
+  name = station
+  pwt = 100
+  condition = STATION_KEEP = true
+
+  center_activate = true
+  inner_radius = 5
+  outer_radius = 10 
+  outer_speed = 1.0
+  
+  transit_speed = 1.3
+  swing_time = 7
+}
+
+//------------------------------------------------------
+// Return Behavior (Return to Start)
+//------------------------------------------------------
+
+Behavior = BHV_Waypoint
+{
+  name = waypt_return
+  pwt = 100
+  condition = RETURN = true
+  endflag = RETURN = false
+  endflag = DEPLOY = false
+
+  speed = 2.0
+  radius = 3.0
+  nm_radius = 10.0
+  
+  // Return to starting position
+  point = $(START_POS)
+}

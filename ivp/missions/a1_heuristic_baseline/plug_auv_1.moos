@@ -1,0 +1,18 @@
+//------------------------------------------------------
+// AUV 1 Configuration: Left Shadower Role
+// Initial Position: Left flank
+//------------------------------------------------------
+
+// Starting position: (x=-60, y=-80, depth=50, heading=90°)
+START_POS = -60,-80,50,90
+
+// Vehicle identification
+VNAME = auv_1
+VPORT = 9002
+VCOLOR = cyan
+
+// Role assignment
+ROLE = shadower_left
+
+// Initial pursuit points (left flank)
+PURSUIT_POINTS = 100,-50:200,-50

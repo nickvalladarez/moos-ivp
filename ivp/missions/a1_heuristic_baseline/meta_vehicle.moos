@@ -1,0 +1,196 @@
+//------------------------------------------------------
+// Vehicle Configuration File: meta_vehicle.moos
+// Phase 0: Perfect sensors, perfect comms, 2D at 50m
+//------------------------------------------------------
+
+ServerHost = localhost
+ServerPort = $(VPORT)
+Community  = $(VNAME)
+
+MOOSTimeWarp = $(WARP)
+
+// Monterey Bay, CA coordinates (36.8°N, 121.9°W)
+LatOrigin  = 36.8
+LongOrigin = -121.9
+
+//------------------------------------------------------
+// ANTLER Configuration Block
+//------------------------------------------------------
+ProcessConfig = ANTLER
+{
+  MSBetweenLaunches = 100
+
+  Run = MOOSDB          @ NewConsole = false
+  Run = uSimMarine      @ NewConsole = false
+  Run = pHelmIvP        @ NewConsole = false
+  Run = pMarinePID      @ NewConsole = false
+  Run = pNodeReporter   @ NewConsole = false
+  Run = pLogger         @ NewConsole = false
+}
+
+//------------------------------------------------------
+// uSimMarine Configuration - REMUS 100 Dynamics
+//------------------------------------------------------
+ProcessConfig = uSimMarine
+{
+  AppTick   = 10
+  CommsTick = 10
+
+  START_POS = $(START_POS)
+  PREFIX    = NAV
+  
+  // REMUS 100 specifications (1.6m length, 37kg mass)
+  // Max speed: 2.5 m/s
+  // Max turn rate: 70°/s
+  
+  // Buoyancy and depth rate
+  BUOYANCY_RATE        = 0.025     // For depth control
+  MAX_DEPTH_RATE       = 5.0       // Max vertical speed (m/s)
+  MAX_DEPTH_RATE_SPEED = 2.0       // Speed for max depth rate
+  
+  // Thrust mapping (0-100% to m/s)
+  // REMUS 100: 0-2.5 m/s range
+  THRUST_MAP = 0:0, 20:0.5, 40:1.0, 60:1.5, 80:2.0, 100:2.5
+  THRUST_REFLECT = true
+  
+  // Turn rate (REMUS 100: ~70°/s)
+  TURN_RATE = 70
+  TURN_LOSS = 0.8      // Speed loss during turn
+  
+  // Environment
+  DEFAULT_WATER_DEPTH = 200  // Monterey Bay depth
+  SIM_PAUSE = false
+  
+  // No drift for Phase 0 (perfect conditions)
+  DRIFT_X = 0
+  DRIFT_Y = 0
+}
+
+//------------------------------------------------------
+// pHelmIvP Configuration - Behavior Coordinator
+//------------------------------------------------------
+ProcessConfig = pHelmIvP
+{
+  AppTick    = 4
+  CommsTick  = 4
+
+  BEHAVIORS    = $(VNAME).bhv
+  VERBOSE      = quiet
+  DOMAIN       = course:0:359:360
+  DOMAIN       = speed:0:2.5:26     // REMUS 100: 0-2.5 m/s
+  DOMAIN       = depth:0:200:201
+
+  OK_SKEW      = ANY
+  ACTIVE_START = true
+  
+  // IvP function parameters
+  IVP_BEHAVIOR_DIR = ./
+}
+
+//------------------------------------------------------
+// pMarinePID Configuration - Low-level Control
+//------------------------------------------------------
+ProcessConfig = pMarinePID
+{
+  AppTick    = 20
+  CommsTick  = 20
+
+  VERBOSE       = true
+  DEPTH_CONTROL = true
+  ACTIVE_START  = true
+
+  // Yaw PID controller (heading control)
+  YAW_PID_KP             = 0.5
+  YAW_PID_KD             = 0.0
+  YAW_PID_KI             = 0.0
+  YAW_PID_INTEGRAL_LIMIT = 0.07
+  
+  // Speed PID controller
+  SPEED_PID_KP           = 1.0
+  SPEED_PID_KD           = 0.0
+  SPEED_PID_KI           = 0.0
+  SPEED_PID_INTEGRAL_LIMIT = 0.07
+  
+  // Depth PID controller (Z to pitch)
+  Z_TO_PITCH_PID_KP      = 0.12
+  Z_TO_PITCH_PID_KD      = 1.0
+  Z_TO_PITCH_PID_KI      = 0.004
+  Z_TO_PITCH_PID_INTEGRAL_LIMIT = 0.05
+
+  // REMUS 100 control surface limits
+  MAXPITCH    = 15      // degrees
+  MAXRUDDER   = 100     // percent
+  MAXTHRUST   = 100     // percent  
+  MAXELEVATOR = 13      // degrees
+  
+  // Deprecated parameters (kept for compatibility)
+  TARDY_HELM_THRESHOLD = 2.0
+  TARDY_NAV_THRESHOLD  = 2.0
+}
+
+//------------------------------------------------------
+// pNodeReporter Configuration - State Publishing
+//------------------------------------------------------
+ProcessConfig = pNodeReporter
+{
+  AppTick    = 2
+  CommsTick  = 2
+
+  PLATFORM_TYPE   = AUV
+  PLATFORM_LENGTH = 1.6      // REMUS 100: 1.6m
+  PLATFORM_COLOR  = $(VCOLOR)
+  
+  VESSEL_TYPE = AUV
+  
+  // Node report format
+  NODE_REPORT_OUTPUT = NODE_REPORT_LOCAL
+}
+
+//------------------------------------------------------
+// pLogger Configuration - Data Recording
+//------------------------------------------------------
+ProcessConfig = pLogger
+{
+  AppTick   = 10
+  CommsTick = 10
+
+  File          = LOG_$(VNAME)
+  PATH          = ./logs/
+  
+  AsyncLog      = true
+  FileTimeStamp = true
+  WildCardLogging = true
+  
+  // Log navigation state (10 Hz)
+  Log = NAV_X @ 0
+  Log = NAV_Y @ 0
+  Log = NAV_SPEED @ 0
+  Log = NAV_HEADING @ 0
+  Log = NAV_DEPTH @ 0
+  Log = NAV_YAW @ 0
+  Log = NAV_PITCH @ 0
+  Log = NAV_ROLL @ 0
+  
+  // Log desired state
+  Log = DESIRED_HEADING @ 0
+  Log = DESIRED_SPEED @ 0
+  Log = DESIRED_DEPTH @ 0
+  
+  // Log contact detections
+  Log = CONTACT_INFO @ 0
+  Log = NODE_REPORT @ 0
+  Log = NODE_REPORT_LOCAL @ 0
+  
+  // Log helm state
+  Log = IVPHELM_STATE @ 0
+  Log = IVPHELM_SUMMARY @ 0
+  
+  // Log behaviors
+  Log = BHV_WARNING @ 0
+  Log = BHV_ERROR @ 0
+}
+
+//------------------------------------------------------
+// Vehicle-Specific Overrides
+//------------------------------------------------------
+#include plug_$(VNAME).moos
